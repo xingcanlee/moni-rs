@@ -208,7 +208,7 @@ type UpdateStatus = {
 
 ## 7. 管理端统一升级
 
-以下接口只允许管理员 Cookie / Bearer，沿用 §1 的 Origin、JSON 检查，不对公开页面或 Agent token 开放。本次提供后端接口和生成的 TS 类型，页面可轮询状态；Dashboard 事件不变。
+以下接口只允许管理员 Cookie / Bearer，沿用 §1 的 Origin、JSON 检查，不对公开页面或 Agent token 开放。管理页「服务器」列表以面板自身版本（`/api/config` 的 `version`）为升级目标，有任务进行中时轮询状态；Dashboard 事件不变。
 
 | 方法 | 路径 | 请求 | 响应 |
 |---|---|---|---|

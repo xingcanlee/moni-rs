@@ -41,6 +41,13 @@ curl -fsSL https://github.com/xingcanlee/moni-rs/releases/latest/download/instal
 
 安装和升级都必须通过签名校验；缺少 `SHA256SUMS.sig` 或验签失败时不会修改现有安装。默认可由管理 API 下发升级；安装时加 `--auto-update`，systemd timer 会每 6 小时检查一次最新稳定版，并加随机延迟。也可立即执行 `sudo systemctl start moni-agent-update-auto.service` 检查并安装更新，无需再次提供地址、token 或公钥。
 
+仓库改名（如 `cyberspacelee/moni-rs` → `xingcanlee/moni-rs`）后，已安装主机固定的仍是旧仓库，面板下发升级会得到 `repo_mismatch`。公钥未变，在每台主机执行一次下面的命令，用本机已固定的公钥改固定仓库，同时升级到最新版：
+
+```sh
+curl -fsSL https://github.com/xingcanlee/moni-rs/releases/latest/download/install-agent.sh \
+  | sudo sh -s -- --repo xingcanlee/moni-rs --update-public-key /etc/moni/release.pub
+```
+
 更换发布信任根属于管理员操作：先核实新公钥，再用 `--update-public-key /trusted/path/release-public.pem` 显式配置。安装器不会用内置公钥静默覆盖已有固定公钥。fork 发布时需要同步修改仓库公钥和安装器内置公钥。
 
 安装器把仓库与公钥固定在 root 拥有的 `/etc/moni/update.conf` 和 `/etc/moni/release.pub`，把 helper 放在 `/usr/local/libexec/moni-agent-update.sh`。监控进程只得到 `MONI_UPDATE_REPO`，通过 `wss://` 连接时声明升级能力。请求目录属于 moni，mode 0700；root 私有状态、并发锁及上一版本保存在 `/var/lib/moni-update`。升级请求按完整文件原子发布，helper 先原子移入 root 私有目录再检查，避免跟随请求符号链接。
@@ -49,7 +56,7 @@ helper 限制 HTTPS、连接/下载超时和产物大小，先把 latest 解析�
 
 ## 管理 API
 
-部署变量 `AGENT_RELEASE_REPO` 必须与主机固定仓库一致。管理页可调用 `POST /api/agent-updates` 指定版本及服务器 ID，再轮询 `GET /api/agent-updates`；类型与终态见 [api.md §7](api.md#7-管理端统一升级)。本次不修改前端页面。离线任务及状态保存在 SQLite，DO 重建不会丢失。
+部署变量 `AGENT_RELEASE_REPO` 必须与主机固定仓库一致。管理页可调用 `POST /api/agent-updates` 指定版本及服务器 ID，再轮询 `GET /api/agent-updates`；类型与终态见 [api.md §7](api.md#7-管理端统一升级)。管理页「服务器」列表显示每台 Agent 的版本；面板版本（与 Agent 同一 tag 发布）高于 Agent 时提供「升级到 vX.Y.Z」和「全部升级」，有任务进行中时每 5 秒轮询，失败原因显示在对应行。离线任务及状态保存在 SQLite，DO 重建不会丢失。
 
 ## 安全审查范围
 

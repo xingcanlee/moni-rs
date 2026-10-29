@@ -1,4 +1,5 @@
 import {
+  ArrowUpCircleIcon,
   BellIcon,
   CheckIcon,
   KeyRoundIcon,
@@ -11,6 +12,7 @@ import {
 } from "lucide-react";
 import { type FormEvent, type ReactNode, useCallback, useEffect, useState } from "react";
 import type {
+  AgentUpdateStatus,
   AlertEvent,
   AlertMetric,
   AlertOp,
@@ -20,6 +22,7 @@ import type {
   AppConfig,
   Appearance,
   ServerStatus,
+  UpdateError,
 } from "@/api/generated";
 import { ConfirmAction, CopyButton, EmptyState, ErrorText, PageSpinner, ResponsiveDialog, Segmented, StatusDot, toastError } from "@/components/common";
 import { Flag } from "@/components/Flag";
@@ -221,22 +224,115 @@ function RenameForm({ server, onDone }: { server: ServerStatus; onDone: () => vo
   );
 }
 
+/* ---------------------------------------------------------------- updates */
+
+/** Zero-padded parts compare as strings; release versions have at most 9 digits per part. */
+function versionKey(v: string | null): string | null {
+  const m = v && /^v?(\d{1,9})\.(\d{1,9})\.(\d{1,9})$/.exec(v);
+  return m ? m.slice(1).map((p) => p.padStart(9, "0")).join(".") : null;
+}
+
+function olderThan(current: string | null, target: string): boolean {
+  const a = versionKey(current);
+  const b = versionKey(target);
+  return a != null && b != null && a < b;
+}
+
+const UPDATE_ERRORS: Record<UpdateError, string> = {
+  disabled: "主机未启用升级",
+  repo_mismatch: "主机固定的发布仓库与面板不一致，需在主机上用 --repo 重新安装一次（见 docs/agent-updates.md）",
+  insecure_transport: "仅 wss:// 连接支持升级",
+  invalid_version: "版本号无效",
+  downgrade: "不支持降级",
+  busy: "主机正在执行另一项升级",
+  request_failed: "升级失败，主机已回退到原版本",
+  timeout: "超时未完成，请查看主机 journalctl -u moni-agent-update",
+  unsupported: "主机未安装签名升级组件，请在主机上重新运行安装命令",
+};
+
+function updateNote(job: AgentUpdateStatus): { text: string; tone: "busy" | "error" } | null {
+  if (job.state === "queued") return { text: `等待升级到 ${job.version}`, tone: "busy" };
+  if (job.state === "accepted") return { text: `正在升级到 ${job.version}`, tone: "busy" };
+  if (job.state === "failed" || job.state === "unsupported")
+    return { text: UPDATE_ERRORS[job.error ?? "unsupported"], tone: "error" };
+  return null;
+}
+
+/** Latest job per server. Polls only while one is in flight; success arrives as a new agent_version. */
+function useAgentUpdates(enabled: boolean) {
+  const [jobs, setJobs] = useState<Map<string, AgentUpdateStatus>>(new Map());
+  const merge = useCallback((list: AgentUpdateStatus[]) => {
+    setJobs((old) => {
+      const next = new Map(old);
+      for (const j of list) next.set(j.server_id, j);
+      return next;
+    });
+  }, []);
+  const refresh = useCallback(() => {
+    api.agentUpdates().then(merge, () => {});
+  }, [merge]);
+  useEffect(() => {
+    if (enabled) refresh();
+  }, [enabled, refresh]);
+  const inFlight = [...jobs.values()].some((j) => j.state === "queued" || j.state === "accepted");
+  useEffect(() => {
+    if (!inFlight) return;
+    const t = setInterval(refresh, 5000);
+    return () => clearInterval(t);
+  }, [inFlight, refresh]);
+  return { jobs, merge };
+}
+
 function ServersTab({ config }: { config: AppConfig | null }) {
   const { servers, ready } = useLive();
   const now = useNow();
   const [adding, setAdding] = useState(false);
   const [token, setToken] = useState<{ server: string; token: string } | null>(null);
   const [editing, setEditing] = useState<ServerStatus | null>(null);
+  // Worker and Agent release from the same tag, so the dashboard's version is the target.
+  const target = config?.agent_release_repo ? `v${config.version}` : null;
+  const { jobs, merge } = useAgentUpdates(target != null);
 
   const list = [...servers.values()].sort((a, b) => a.name.localeCompare(b.name));
+  const pending = (id: string) => {
+    const state = jobs.get(id)?.state;
+    return state === "queued" || state === "accepted";
+  };
+  const outdated = target ? list.filter((s) => olderThan(s.agent_version, target) && !pending(s.id)) : [];
+
+  const upgrade = async (ids: string[]) => {
+    if (!target) return;
+    try {
+      merge(await api.updateAgents(target, ids));
+    } catch (err) {
+      toastError(err);
+    }
+  };
 
   return (
     <div className="space-y-4">
       <Toolbar text="每台服务器使用独立 token；轮换或删除会立即断开对应 Agent。">
-        <Button size="lg" onClick={() => setAdding(true)}>
-          <PlusIcon data-icon="inline-start" />
-          添加服务器
-        </Button>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          {target && outdated.length > 1 && (
+            <ConfirmAction
+              title={`把 ${outdated.length} 台服务器的 Agent 升级到 ${target}？`}
+              description="主机下载并验证签名后替换程序，期间会短暂离线；新版本启动失败会自动回退。"
+              action="全部升级"
+              destructive={false}
+              onConfirm={() => upgrade(outdated.map((s) => s.id))}
+              trigger={
+                <Button size="lg" variant="outline">
+                  <ArrowUpCircleIcon data-icon="inline-start" />
+                  全部升级到 {target}
+                </Button>
+              }
+            />
+          )}
+          <Button size="lg" onClick={() => setAdding(true)}>
+            <PlusIcon data-icon="inline-start" />
+            添加服务器
+          </Button>
+        </div>
       </Toolbar>
 
       {!ready ? (
@@ -253,9 +349,14 @@ function ServersTab({ config }: { config: AppConfig | null }) {
                   <a href={href({ page: "server", id: s.id })} className="block truncate leading-5 font-medium underline-offset-2 hover:underline">
                     {s.name}
                   </a>
-                  <div className="mt-0.5 flex h-4 items-center gap-1.5 text-xs leading-4 text-muted-foreground">
+                  <div className="mt-0.5 flex min-h-4 flex-wrap items-center gap-x-1.5 gap-y-1 text-xs leading-4 text-muted-foreground">
                     <span className="truncate font-mono">{s.id}</span>
-                    {s.agent_version && <span className="shrink-0">· v{s.agent_version}</span>}
+                    {s.agent_version && (
+                      <Badge variant="outline" className="h-4 px-1.5 font-mono text-[11px]">
+                        v{s.agent_version}
+                      </Badge>
+                    )}
+                    <UpdateHint job={jobs.get(s.id)} />
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
@@ -264,6 +365,14 @@ function ServersTab({ config }: { config: AppConfig | null }) {
                 </div>
               </div>
               <div className="-mx-2 flex gap-1 sm:mx-0">
+                {target && olderThan(s.agent_version, target) && !pending(s.id) && (
+                  <Button size="sm" variant="ghost" className="text-primary hover:text-primary" onClick={() => void upgrade([s.id])}>
+                    <ArrowUpCircleIcon data-icon="inline-start" />
+                    {/* Short labels keep all four actions on one line at phone width. */}
+                    <span className="sm:hidden">升级</span>
+                    <span className="hidden sm:inline">升级到 {target}</span>
+                  </Button>
+                )}
                 <Button size="sm" variant="ghost" onClick={() => setEditing(s)}>
                   <PencilIcon data-icon="inline-start" />
                   重命名
@@ -280,7 +389,7 @@ function ServersTab({ config }: { config: AppConfig | null }) {
                   trigger={
                     <Button size="sm" variant="ghost">
                       <KeyRoundIcon data-icon="inline-start" />
-                      轮换 Token
+                      <span className="hidden sm:inline">轮换</span> Token
                     </Button>
                   }
                 />
@@ -325,6 +434,19 @@ function ServersTab({ config }: { config: AppConfig | null }) {
         {editing && <RenameForm server={editing} onDone={() => setEditing(null)} />}
       </ResponsiveDialog>
     </div>
+  );
+}
+
+function UpdateHint({ job }: { job: AgentUpdateStatus | undefined }) {
+  const note = job && updateNote(job);
+  if (!note) return null;
+  return (
+    <span className={cn("inline-flex min-w-0 items-center gap-1", note.tone === "error" ? "text-destructive" : "text-foreground")}>
+      {note.tone === "busy" && <Spinner className="size-3" />}
+      <span className="truncate" title={note.text}>
+        {note.text}
+      </span>
+    </span>
   );
 }
 

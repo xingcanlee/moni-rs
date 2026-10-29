@@ -1,4 +1,5 @@
 import type {
+  AgentUpdateStatus,
   AlertEvent,
   AlertRule,
   AlertRuleInput,
@@ -78,6 +79,9 @@ export const api = {
     request<ServerStatus>("PATCH", `/api/servers/${encodeURIComponent(id)}`, { name }),
   deleteServer: (id: string) => request<void>("DELETE", `/api/servers/${encodeURIComponent(id)}`),
   rotateToken: (id: string) => request<TokenResponse>("POST", `/api/servers/${encodeURIComponent(id)}/token`),
+  agentUpdates: () => request<AgentUpdateStatus[]>("GET", "/api/agent-updates"),
+  updateAgents: (version: string, serverIds: string[]) =>
+    request<AgentUpdateStatus[]>("POST", "/api/agent-updates", { version, server_ids: serverIds }),
   history: (id: string, range: HistoryRange) =>
     request<History>("GET", `/api/servers/${encodeURIComponent(id)}/history?range=${range}`),
 
