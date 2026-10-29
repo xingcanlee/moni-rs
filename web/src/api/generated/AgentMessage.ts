@@ -5,4 +5,9 @@ import type { MinuteRollup } from "./MinuteRollup";
 import type { UpdateError } from "./UpdateError";
 import type { UpdateState } from "./UpdateState";
 
-export type AgentMessage = { "type": "hello", protocol: number, agent_version: string, host: HostInfo, update_repo: string | null, } | { "type": "update_status", job_id: string, version: string, state: UpdateState, error: UpdateError | null, } | { "type": "metrics" } & MetricsFrame | { "type": "rollup" } & MinuteRollup;
+export type AgentMessage = { "type": "hello", protocol: number, agent_version: string, host: HostInfo, update_repo: string | null, 
+/**
+ * ISO 3166-1 alpha-2 code the Agent resolved from its own interface address; absent
+ * when unknown, in which case the Hub keeps Cloudflare's view of the egress IP.
+ */
+country?: string, } | { "type": "update_status", job_id: string, version: string, state: UpdateState, error: UpdateError | null, } | { "type": "metrics" } & MetricsFrame | { "type": "rollup" } & MinuteRollup;

@@ -173,6 +173,7 @@ where
             agent_version: env!("CARGO_PKG_VERSION").to_owned(),
             host: host.clone(),
             update_repo: update::advertised_repo(config),
+            country: config.country.code(),
         },
     )
     .await?;

@@ -69,6 +69,11 @@ pub enum AgentMessage {
         agent_version: String,
         host: HostInfo,
         update_repo: Option<String>,
+        /// ISO 3166-1 alpha-2 code the Agent resolved from its own interface address; absent
+        /// when unknown, in which case the Hub keeps Cloudflare's view of the egress IP.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[cfg_attr(feature = "ts", ts(optional))]
+        country: Option<String>,
     },
     UpdateStatus {
         job_id: String,

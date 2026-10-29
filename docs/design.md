@@ -45,7 +45,7 @@ pub const PROTOCOL_VERSION: u16 = 3;
 enum AgentMessage {
     Hello {
         protocol: u16, agent_version: String, host: HostInfo,
-        update_repo: Option<String>,
+        update_repo: Option<String>, country: Option<String>,   // country 可省略
     },
     Metrics(MetricsFrame),         // 实时帧，默认有人查看时每 2 秒一帧，只用于展示 / 告警
     Rollup(MinuteRollup),          // 分钟聚合，每分钟一条；Hub 确认前会重发
@@ -108,7 +108,7 @@ Agent 与 Hub 统一使用协议 v3，动态周期是必备能力，不保留旧
 - 关闭码：`4001` 协议不兼容 → 退出码 2，不重试；`4003` token 失效 → 退出码 3，不重试；`4002` 被替换 → 延迟 30 秒再重连。
 
 ### 3.3 配置
-CLI 参数优先，其次环境变量：`MONI_SERVER`（wss URL）、`MONI_TOKEN`、`MONI_INTERVAL`、`MONI_IFACES`、`MONI_DISKS`、`MONI_UPDATE_REPO`（可选，本机固定升级仓库）、`RUST_LOG`。
+CLI 参数优先，其次环境变量：`MONI_SERVER`（wss URL）、`MONI_TOKEN`、`MONI_INTERVAL`、`MONI_IFACES`、`MONI_DISKS`、`MONI_UPDATE_REPO`（可选，本机固定升级仓库）、`MONI_COUNTRY`（`auto` / `off` / 两位国家码，默认 `auto`）、`RUST_LOG`。
 systemd 单元通过 `EnvironmentFile=/etc/moni/agent.env` 读取配置。
 
 ## 4. Worker（无状态入口）
@@ -119,7 +119,10 @@ systemd 单元通过 `EnvironmentFile=/etc/moni/agent.env` 读取配置。
   `Authorization: Bearer <ADMIN_PASSWORD>` 视为同等权限（供 CLI / 脚本使用）。
 - **Agent token**：格式 `mn_<server_id>_<43 字符 base64url 随机串>`。Worker 解析出 server_id，计算 `token_hash = hex(HMAC-SHA256(AUTH_SECRET, token))`，通过内部 header `x-moni-server-id` 和 `x-moni-token-hash` 转发给 Hub，由 Hub 比对存储的哈希。客户端带来的这两个 header 一律先删除。
 - **公开只读**：`PUBLIC_DASHBOARD="true"` 时，未登录访客可以访问 `/ws/dashboard` 和 history，Hub 用 `public` 标签区分连接并广播脱敏事件（api.md §5.1）；Worker 通过内部 header `x-moni-admin` 告诉 Hub 连接是否为管理员，客户端带来的同名 header 一律先删除。公开 history 走 Cache API（60 秒）。
-- **地区**：Agent 握手时 Worker 读取 `request.cf.country`，经 `x-moni-country` 交给 Hub，与上线时的 `last_seen_ms` 写在同一条 UPDATE 里。
+- **地区**：Agent 握手时 Worker 读取 `request.cf.country`，经 `x-moni-country` 交给 Hub，与上线时的 `last_seen_ms` 写在同一条 UPDATE 里；Hello 中的 `country` 随 Hello 的 UPDATE 覆盖它。
+  - 为什么放在 Agent：Agent 走透明代理 / TUN / WARP 时，Cloudflare 只能看到代理出口 IP；Worker 也没有 GeoIP 库可以离线查询任意 IP。只有 Agent 知道本机网卡上的真实地址。
+  - Agent 启动时（`MONI_COUNTRY=auto`，默认）取非隧道网卡上的全局单播地址（排除私网、CGNAT、`198.18.0.0/15` fake-ip 等，IPv4 优先），把**该地址作为参数**请求 `ipinfo.io/<ip>/country`，失败再试 `api.country.is/<ip>`；请求本身经过代理也不影响结果。每个进程只查一次。
+  - NAT 机器网卡上没有公网地址，此时回退到 Cloudflare；可用 `MONI_COUNTRY=JP` 手动指定，或 `MONI_COUNTRY=off` 关闭查询（不向第三方发送本机地址）。
 - 登录接口限流：同一 IP 每分钟最多 10 次失败，计数保存在 Hub 内存里（丢失可以接受）。
 - 必需 Secret：`ADMIN_PASSWORD`、`AUTH_SECRET`（≥32 字节）。缺少时，`/api/*` 返回 `503 {"error":"not_configured"}`。
 

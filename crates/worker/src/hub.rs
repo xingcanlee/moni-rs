@@ -166,6 +166,7 @@ impl DurableObject for Hub {
                 agent_version,
                 host,
                 update_repo,
+                country,
             } => {
                 if conn.hello_received {
                     self.on_disconnect(&ws)?;
@@ -188,11 +189,15 @@ impl DurableObject for Hub {
                     ws.close(Some(1009), Some("host metadata too large"))?;
                     return Ok(());
                 }
+                // The Agent sees its own interface address, which a proxy or tunnel hides from
+                // Cloudflare, so its answer replaces the edge's guess made at connect time.
+                let country = logic::country_code(country.as_deref());
                 self.state.storage().sql().exec(
-                    "UPDATE servers SET host_json = ?, agent_version = ? WHERE id = ?",
+                    "UPDATE servers SET host_json = ?, agent_version = ?, country = COALESCE(?, country) WHERE id = ?",
                     vec![
                         serde_json::to_string(&host)?.into(),
                         agent_version.as_str().into(),
+                        country.into(),
                         conn.server_id.as_str().into(),
                     ],
                 )?;

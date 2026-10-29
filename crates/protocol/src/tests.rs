@@ -86,8 +86,20 @@ fn agent_messages_match_design() {
             "type": "hello", "protocol": 3, "agent_version": "0.1.0", "host": host(),
             "update_repo": repo
         }));
-        assert!(matches!(hello, AgentMessage::Hello { protocol: 3, .. }));
+        assert!(matches!(
+            hello,
+            AgentMessage::Hello {
+                protocol: 3,
+                country: None,
+                ..
+            }
+        ));
     }
+    let hello = assert_roundtrip::<AgentMessage>(json!({
+        "type": "hello", "protocol": 3, "agent_version": "0.1.0", "host": host(),
+        "update_repo": null, "country": "JP"
+    }));
+    assert!(matches!(hello, AgentMessage::Hello { country: Some(c), .. } if c == "JP"));
 
     let mut frame = metrics();
     frame["type"] = json!("metrics");

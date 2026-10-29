@@ -1,5 +1,6 @@
 use std::{
     collections::HashSet,
+    net::IpAddr,
     path::Path,
     time::{Duration, Instant},
 };
@@ -92,6 +93,20 @@ impl Sampler {
                 .saturating_mul(1_000)
                 .min(i64::MAX as u64) as i64,
         }
+    }
+
+    /// Candidates for geolocation, IPv4 first because providers place it more reliably.
+    pub fn public_addresses(&self) -> Vec<IpAddr> {
+        let mut addresses: Vec<IpAddr> = self
+            .networks
+            .iter()
+            .filter(|(name, _)| include_iface(name, &self.ifaces) && !crate::geo::tunnel(name))
+            .flat_map(|(_, data)| data.ip_networks().iter().map(|network| network.addr))
+            .filter(crate::geo::public)
+            .collect();
+        addresses.sort_by_key(IpAddr::is_ipv6);
+        addresses.dedup();
+        addresses
     }
 
     fn net_counters(&self) -> Vec<(String, u64, u64)> {

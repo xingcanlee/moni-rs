@@ -26,6 +26,43 @@ pub struct Config {
     /// Trusted release repository, enabled only when the root update helper is installed
     #[arg(long, env = "MONI_UPDATE_REPO", value_parser = update_repo)]
     pub update_repo: Option<String>,
+    /// Region shown on the dashboard: `auto` geolocates the public address bound to a local
+    /// interface, `off` leaves it to Cloudflare's view of the egress IP, or an ISO 3166-1
+    /// alpha-2 code such as `JP` pins it
+    #[arg(long, env = "MONI_COUNTRY", default_value = "auto", value_parser = country)]
+    pub country: Country,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Country {
+    Auto,
+    Off,
+    Fixed(String),
+}
+
+impl Country {
+    pub fn code(&self) -> Option<String> {
+        match self {
+            Self::Fixed(code) => Some(code.clone()),
+            Self::Auto | Self::Off => None,
+        }
+    }
+}
+
+pub fn country_code(value: &str) -> Option<String> {
+    let value = value.trim().to_ascii_uppercase();
+    (value.len() == 2 && value.bytes().all(|b| b.is_ascii_uppercase()) && value != "XX")
+        .then_some(value)
+}
+
+fn country(value: &str) -> Result<Country, String> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "auto" => Ok(Country::Auto),
+        "off" => Ok(Country::Off),
+        _ => country_code(value)
+            .map(Country::Fixed)
+            .ok_or_else(|| "country must be auto, off or a two-letter ISO code".to_owned()),
+    }
 }
 
 fn update_repo(value: &str) -> Result<String, String> {
@@ -67,6 +104,24 @@ mod tests {
         assert_eq!(config.disks, ["/", "/data"]);
         assert!(Config::try_parse_from(args.into_iter().chain(["--interval", "0"])).is_err());
         assert!(Config::try_parse_from(args.into_iter().chain(["--queue-capacity", "0"])).is_err());
+    }
+
+    #[test]
+    fn country_is_auto_off_or_an_iso_code() {
+        let args = [
+            "agent",
+            "--server",
+            "wss://example.com/ws/agent",
+            "--token",
+            "test",
+        ];
+        assert_eq!(Config::try_parse_from(args).unwrap().country, Country::Auto);
+        let parse = |value| Config::try_parse_from(args.into_iter().chain(["--country", value]));
+        assert_eq!(parse("OFF").unwrap().country, Country::Off);
+        assert_eq!(parse("jp").unwrap().country, Country::Fixed("JP".into()));
+        for bad in ["", "J", "JPN", "XX", "1A"] {
+            assert!(parse(bad).is_err(), "{bad}");
+        }
     }
 
     #[test]

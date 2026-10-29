@@ -80,7 +80,7 @@ type ServerStatus = {
   metrics: MetricsFrame | null;     // 仅在线时非空
   traffic_month: Traffic;
   alerts_firing: number;            // 当前处于 firing 状态的告警数
-  country: string | null;           // Agent 出口 IP 所在国家（ISO 3166-1 alpha-2，来自 Cloudflare 的 request.cf.country）
+  country: string | null;           // 服务器所在国家（ISO 3166-1 alpha-2）：优先 Agent 上报，否则为 Cloudflare 看到的出口 IP
 };
 ```
 
@@ -158,7 +158,7 @@ type DashboardEvent =
   | { type: "traffic"; id: string; traffic: Traffic }        // 每次写入 Rollup 后推送更新后的本月流量
   | { type: "alert"; kind: "firing" | "resolved"; alert: ActiveAlert };
 ```
-`country` 在 Agent 每次建立连接时由 Worker 读取 `request.cf.country` 并随同上线时那次写入一并更新（不额外增加写入）；`XX`（未知）和 `T1`（Tor）会被忽略，保留上一次的值。服务端从不保存 IP。
+`country` 有两个来源，都搭在已有的写入里（不额外增加写入）：Agent 每次建立连接时，Worker 读取 `request.cf.country` 随上线那次 UPDATE 写入；随后 Hello 若带有 `country`，随 Hello 的 UPDATE 覆盖它。Agent 走代理或隧道时 Cloudflare 看到的是代理出口，因此以 Agent 上报为准。`XX`（未知）和 `T1`（Tor）会被忽略，保留上一次的值。服务端从不保存 IP。
 
 `traffic`：在线服务器的本月流量由 Hub 在连接 attachment 中增量维护（连接建立或跨月时做一次 SUM 重算，之后每次写入新 Rollup 时累加），因此推送不产生额外的 SQLite 读取。
 连接建立后会立即收到一条 `snapshot`。断线重连后，同样用 snapshot 整体替换本地状态。
@@ -192,7 +192,7 @@ Agent 切换到更快周期时丢弃旧的实时聚合窗口，在下一个新�
 
 ### 6.2 签名升级
 
-只有本机已安装更新 helper、固定可信仓库及公钥，并使用 `wss://` 连接的 Agent，才在 Hello 中发送 `update_repo: "owner/repo"`。缺失或 `null` 表示未启用升级。Hub 不向本机未启用升级的 Agent 投递升级命令。每连接仅接受一次 Hello；消息最大 16 KiB。
+只有本机已安装更新 helper、固定可信仓库及公钥，并使用 `wss://` 连接的 Agent，才在 Hello 中发送 `update_repo: "owner/repo"`。缺失或 `null` 表示未启用升级。可选的 `country`（ISO 3166-1 alpha-2）是 Agent 用本机网卡上的公网地址查询得到的地区，或 `MONI_COUNTRY` 手动指定的值；缺失表示交给 Cloudflare 判断。Hub 不向本机未启用升级的 Agent 投递升级命令。每连接仅接受一次 Hello；消息最大 16 KiB。
 
 ```ts
 // Hub → Agent

@@ -1,4 +1,5 @@
 mod config;
+mod geo;
 mod queue;
 mod rollup;
 mod sampler;
@@ -22,7 +23,7 @@ use tokio::{
 use tracing::{error, info, warn};
 use tracing_subscriber::{Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
-use config::Config;
+use config::{Config, Country};
 use queue::PendingQueue;
 use rollup::Rollup;
 use sampler::Sampler;
@@ -171,9 +172,26 @@ async fn main() -> Result<ExitCode> {
         )
         .init();
     let _ = rustls::crypto::ring::default_provider().install_default();
-    let config = Config::parse();
+    let mut config = Config::parse();
     let sampler = Sampler::new(&config);
     let host = sampler.host_info();
+    if config.country == Country::Auto {
+        let addresses = sampler.public_addresses();
+        config.country = match geo::locate(&addresses).await {
+            Some(code) => {
+                info!(country = code, "located by interface address");
+                Country::Fixed(code)
+            }
+            None => {
+                // NAT hosts carry no public address; Cloudflare then places the egress IP.
+                info!(
+                    candidates = addresses.len(),
+                    "no interface address located; using Cloudflare geolocation"
+                );
+                Country::Off
+            }
+        };
+    }
     let state = State::new(&config);
     let (shutdown_tx, shutdown_rx) = watch::channel(false);
     #[cfg(unix)]
