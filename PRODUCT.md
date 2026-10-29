@@ -29,7 +29,7 @@ Zero-cost, zero-infrastructure: fork the repo, set two secrets, deploy to Cloudf
 - UI copy is Simplified Chinese. No backward-compatibility constraints on the visual layer: the redesign may replace anything visual.
 
 ## Brand Commitments
-- Name: **moni** (repo `moni-rs`). Author: cyberspacelee, https://github.com/cyberspacelee/moni-rs, MIT license. The footer must credit the author with copyright and link to GitHub.
+- Name: **moni** (repo `moni-rs`). Author: xingcanlee, https://github.com/xingcanlee/moni-rs, MIT license. The footer must credit the author with copyright and link to GitHub.
 - Visual register (owner, 2026-10-17): clean, restrained, enterprise, in the spirit of Apple and Anthropic product pages. Warm neutrals, one quiet accent, generous spacing, soft corners.
 - Rejected by the owner: purple/blue gradients, glow, glass; stark black-and-white; decorative or novelty icons; metaphor devices on server cards (the station-clock direction was shipped and rejected).
 - No filler copy: no taglines or self-descriptions ("开源 VPS 监控 · 运行在 Cloudflare Workers") in the chrome.

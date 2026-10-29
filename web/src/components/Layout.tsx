@@ -32,8 +32,8 @@ function ConnIndicator() {
   );
 }
 
-const REPO = "https://github.com/cyberspacelee/moni-rs";
-const AUTHOR = { name: "cyberspacelee", url: "https://github.com/cyberspacelee" };
+const REPO = "https://github.com/xingcanlee/moni-rs";
+const AUTHOR = { name: "xingcanlee", url: "https://github.com/xingcanlee" };
 const SINCE = 2026;
 
 function Footer({ tabBar }: { tabBar: boolean }) {

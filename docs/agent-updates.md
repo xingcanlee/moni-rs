@@ -22,8 +22,8 @@ gh secret set AGENT_RELEASE_SIGNING_KEY < release-private.pem
 在管理页面新增节点后，直接复制包含地址、仓库和 token 的安装命令。使用从可信仓库取得的安装器即可，无需单独下载公钥：
 
 ```sh
-curl -fsSL https://github.com/cyberspacelee/moni-rs/releases/latest/download/install-agent.sh \
-  | sudo sh -s -- --repo cyberspacelee/moni-rs \
+curl -fsSL https://github.com/xingcanlee/moni-rs/releases/latest/download/install-agent.sh \
+  | sudo sh -s -- --repo xingcanlee/moni-rs \
       --server wss://monitor.example/ws/agent --token mn_SERVER_SECRET
 ```
 
@@ -32,10 +32,10 @@ curl -fsSL https://github.com/cyberspacelee/moni-rs/releases/latest/download/ins
 已配置签名更新的主机可不带参数重跑安装器，自动读取本机固定仓库、公钥并保留连接与采集配置：
 
 ```sh
-curl -fsSL https://github.com/cyberspacelee/moni-rs/releases/latest/download/install-agent.sh | sudo sh
+curl -fsSL https://github.com/xingcanlee/moni-rs/releases/latest/download/install-agent.sh | sudo sh
 ```
 
-仅保留旧版 `agent.env`、尚未固定仓库和公钥的主机，首次迁移时在上述命令末尾使用 `sudo sh -s -- --repo cyberspacelee/moni-rs`，即可保留现有地址、token 和采集配置；之后无需再传仓库。
+仅保留旧版 `agent.env`、尚未固定仓库和公钥的主机，首次迁移时在上述命令末尾使用 `sudo sh -s -- --repo xingcanlee/moni-rs`，即可保留现有地址、token 和采集配置；之后无需再传仓库。
 
 轮换 token 后，复制页面生成的新命令再执行即可。显式 `--token`、`--server`、`--interval` 只替换对应配置项；未传入的字段、网卡、磁盘及其他自定义项保持原值。也可在已有安装脚本上运行 `sudo sh install-agent.sh --token mn_NEW_SECRET`，只更换连接凭据并重启。无需额外的 `--reconfigure` 开关。
 

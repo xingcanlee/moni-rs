@@ -1,7 +1,7 @@
 # moni-rs
 
-[![CI](https://github.com/cyberspacelee/moni-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/cyberspacelee/moni-rs/actions/workflows/ci.yml)
-[![Deploy](https://github.com/cyberspacelee/moni-rs/actions/workflows/deploy.yml/badge.svg)](https://github.com/cyberspacelee/moni-rs/actions/workflows/deploy.yml)
+[![CI](https://github.com/xingcanlee/moni-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/xingcanlee/moni-rs/actions/workflows/ci.yml)
+[![Deploy](https://github.com/xingcanlee/moni-rs/actions/workflows/deploy.yml/badge.svg)](https://github.com/xingcanlee/moni-rs/actions/workflows/deploy.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 [简体中文](README.md) | **English**
@@ -123,4 +123,4 @@ pnpm --filter moni-web screenshots           # regenerate docs/screenshots from 
 
 ## License
 
-[MIT](LICENSE) © cyberspacelee
+[MIT](LICENSE) © xingcanlee
