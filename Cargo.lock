@@ -669,7 +669,7 @@ dependencies = [
 
 [[package]]
 name = "moni-agent"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "anyhow",
  "clap",
@@ -680,14 +680,16 @@ dependencies = [
  "serde_json",
  "sysinfo",
  "tokio",
+ "tokio-rustls",
  "tokio-tungstenite",
  "tracing",
  "tracing-subscriber",
+ "webpki-roots 1.0.9",
 ]
 
 [[package]]
 name = "moni-protocol"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "serde",
  "serde_json",
@@ -696,7 +698,7 @@ dependencies = [
 
 [[package]]
 name = "moni-worker"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "base64",
  "console_error_panic_hook",
