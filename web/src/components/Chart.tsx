@@ -111,6 +111,8 @@ export function Chart({ title, icon, xs, series, format, axisFormat, yMax, windo
           ticks: { show: false },
           font,
           gap: 6,
+          // uPlot's default 50px band leaves a blank strip under the labels.
+          size: 24,
           space: 64,
           values: (u, splits) => {
             const span = (u.scales.x?.max ?? 0) - (u.scales.x?.min ?? 0);

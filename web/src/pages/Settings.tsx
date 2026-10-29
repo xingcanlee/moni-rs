@@ -130,7 +130,7 @@ function TokenReveal({ config, token }: { config: AppConfig | null; token: strin
           <span className="text-sm font-medium">Token</span>
           <CopyButton text={token} />
         </div>
-        <code data-token className="block truncate rounded-md bg-muted px-2.5 py-2 font-mono text-xs">
+        <code data-token className="block rounded-md bg-muted px-2.5 py-2 font-mono text-xs leading-5 break-all">
           {token}
         </code>
       </div>
@@ -139,7 +139,8 @@ function TokenReveal({ config, token }: { config: AppConfig | null; token: strin
           <span className="text-sm font-medium">安装命令（在 VPS 上以 root 运行）</span>
           <CopyButton text={cmd} />
         </div>
-        <pre className="overflow-x-auto rounded-xl bg-[#1b1a19] p-4 font-mono text-xs leading-relaxed text-[#f4f3ee]">{cmd}</pre>
+        {/* Wrapped rather than scrolled so the whole token is visible; copying goes through the button. */}
+        <pre className="rounded-xl bg-[#1b1a19] p-3 font-mono text-xs leading-relaxed break-all whitespace-pre-wrap text-[#f4f3ee] sm:p-4">{cmd}</pre>
       </div>
       {!config?.agent_release_repo && (
         <p className="text-xs text-muted-foreground">未配置 AGENT_RELEASE_REPO，请把命令中的 &lt;owner&gt; 替换为你的 GitHub 仓库。</p>
@@ -313,7 +314,7 @@ function ServersTab({ config }: { config: AppConfig | null }) {
 
       <ResponsiveDialog open={token != null} onOpenChange={(o) => !o && setToken(null)} title={`${token?.server ?? ""} 的安装信息`}>
         {token && <TokenReveal config={config} token={token.token} />}
-        <div className="flex justify-end pt-1">
+        <div className="flex justify-end pt-4 sm:pt-1">
           <Button size="lg" className="w-full sm:w-auto" onClick={() => setToken(null)}>
             我已保存
           </Button>

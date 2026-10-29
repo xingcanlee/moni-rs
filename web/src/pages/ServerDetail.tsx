@@ -48,6 +48,7 @@ const MONO_ROWS = new Set(["主机名", "内核", "ID"]);
 
 /** Axis ticks need to fit 46px: drop the "/s" and decimals the chart legend already carries. */
 function shortRate(v: number): string {
+  if (v === 0) return "0";
   const units = ["B", "K", "M", "G", "T"];
   let i = 0;
   while (v >= 1024 && i < units.length - 1) {
@@ -63,7 +64,7 @@ function Reading({ label, value, sub, level }: { label: string; value: ReactNode
     <div className="min-w-0 bg-card px-5 py-4">
       <div className="text-xs leading-4 text-muted-foreground">{label}</div>
       <div className="hero-num tabular mt-1.5 truncate text-lg leading-7 font-semibold tracking-tight">{value}</div>
-      {sub && <div className="tabular truncate text-xs leading-4 text-muted-foreground">{sub}</div>}
+      {sub && <div className="tabular text-xs leading-4 text-pretty text-muted-foreground">{sub}</div>}
       {level !== undefined && <MeterBar label={label} value={level} className="mt-2.5 h-1" />}
     </div>
   );
